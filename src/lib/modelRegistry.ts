@@ -195,7 +195,7 @@ export const modelRegistry: ModelDef[] = [
       imageSize,
       imageOutputFormat,
       imageCompressionQuality,
-      imagePersonGeneration,
+
       imageTemperature,
       safetyTolerance,
     ],
@@ -216,7 +216,7 @@ export const modelRegistry: ModelDef[] = [
       imageSize,
       imageOutputFormat,
       imageCompressionQuality,
-      imagePersonGeneration,
+
       imageTemperature,
       safetyTolerance,
     ],
@@ -236,7 +236,7 @@ export const modelRegistry: ModelDef[] = [
       imageAspectRatio,
       imageOutputFormat,
       imageCompressionQuality,
-      imagePersonGeneration,
+
       imageTemperature,
       safetyTolerance,
     ],

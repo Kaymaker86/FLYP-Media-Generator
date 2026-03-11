@@ -39,7 +39,7 @@ async function generateSingle(
   const imageConfig: Record<string, unknown> = {};
   if (settings.aspectRatio) imageConfig.aspectRatio = settings.aspectRatio;
   if (settings.imageSize) imageConfig.imageSize = settings.imageSize;
-  if (settings.personGeneration) imageConfig.personGeneration = settings.personGeneration;
+  // personGeneration is not supported in Gemini API (only Vertex AI)
   if (settings.outputMimeType) imageConfig.outputMimeType = settings.outputMimeType;
   if (settings.outputCompressionQuality) {
     imageConfig.outputCompressionQuality = Number(settings.outputCompressionQuality);
