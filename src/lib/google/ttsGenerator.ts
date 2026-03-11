@@ -21,9 +21,17 @@ export async function generateTTS(options: TTSOptions): Promise<TTSResult> {
     responseModalities: ['AUDIO'],
   };
 
+  // Build speech config
+  const speechConfig: Record<string, unknown> = {};
+
+  // Add language if specified
+  const languageCode = settings.languageCode as string;
+  if (languageCode) {
+    speechConfig.languageCode = languageCode;
+  }
+
   if (multiSpeaker) {
     // Multi-speaker mode: parse "Speaker N:" prefixes from the prompt
-    // The API uses multiSpeakerVoiceConfigs
     const speakerPattern = /Speaker\s+(\d+):/gi;
     const speakers = new Set<string>();
     let match;
@@ -42,17 +50,17 @@ export async function generateTTS(options: TTSOptions): Promise<TTSResult> {
         },
       }));
 
-      config.speechConfig = { multiSpeakerVoiceConfigs: speakerVoiceConfigs };
+      speechConfig.multiSpeakerVoiceConfig = { speakerVoiceConfigs };
     }
   } else {
-    config.speechConfig = {
-      voiceConfig: {
-        prebuiltVoiceConfig: {
-          voiceName,
-        },
+    speechConfig.voiceConfig = {
+      prebuiltVoiceConfig: {
+        voiceName,
       },
     };
   }
+
+  config.speechConfig = speechConfig;
 
   const response = await client.models.generateContent({
     model: modelId,

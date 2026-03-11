@@ -42,6 +42,7 @@ function SettingControl({
           value={Number(currentValue)}
           min={setting.min}
           max={setting.max}
+          step={setting.step}
           onChange={(e) => onChange(Number(e.target.value))}
           className="w-full bg-gray-800 text-gray-200 border border-gray-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
         />
@@ -97,6 +98,9 @@ export default function SettingsPanel({ model, settings, onChange }: SettingsPan
             value={settings[setting.key]}
             onChange={(val) => onChange(setting.key, val)}
           />
+          {setting.description && setting.type !== 'toggle' && (
+            <p className="text-xs text-gray-500 mt-1">{setting.description}</p>
+          )}
         </div>
       ))}
     </div>

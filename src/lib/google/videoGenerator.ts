@@ -24,6 +24,15 @@ export async function startVideoGeneration(options: VideoGenOptions): Promise<Vi
   if (settings.aspectRatio) config.aspectRatio = settings.aspectRatio;
   if (settings.durationSeconds) config.durationSeconds = Number(settings.durationSeconds);
   if (settings.personGeneration) config.personGeneration = settings.personGeneration;
+  if (settings.resolution) config.resolution = settings.resolution;
+  if (settings.generateAudio !== undefined) config.generateAudio = settings.generateAudio;
+  if (settings.enhancePrompt) config.enhancePrompt = settings.enhancePrompt;
+  if (settings.negativePrompt) config.negativePrompt = settings.negativePrompt;
+  if (settings.numberOfVideos && Number(settings.numberOfVideos) > 1) {
+    config.numberOfVideos = Number(settings.numberOfVideos);
+  }
+  if (settings.seed && Number(settings.seed) > 0) config.seed = Number(settings.seed);
+  if (settings.compressionQuality) config.compressionQuality = settings.compressionQuality;
 
   const operation = await client.models.generateVideos({
     model: 'veo-3.1-generate-preview',

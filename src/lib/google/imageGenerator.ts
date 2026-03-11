@@ -34,12 +34,10 @@ export async function generateImage(options: ImageGenOptions): Promise<ImageGenR
   // Build parts
   const parts: Part[] = [];
 
-  // Add image parts first
   for (const m of media) {
     parts.push(await mediaToInlinePart(m));
   }
 
-  // Add text prompt
   parts.push({ text: prompt });
 
   // Build generation config
@@ -47,8 +45,24 @@ export async function generateImage(options: ImageGenOptions): Promise<ImageGenR
     responseModalities: ['TEXT', 'IMAGE'],
   };
 
-  if (settings.aspectRatio) {
-    config.aspectRatio = settings.aspectRatio;
+  // Image-specific config (nested under imageConfig)
+  const imageConfig: Record<string, unknown> = {};
+
+  if (settings.aspectRatio) imageConfig.aspectRatio = settings.aspectRatio;
+  if (settings.imageSize) imageConfig.imageSize = settings.imageSize;
+  if (settings.outputMimeType) imageConfig.outputMimeType = settings.outputMimeType;
+  if (settings.outputCompressionQuality) {
+    imageConfig.outputCompressionQuality = Number(settings.outputCompressionQuality);
+  }
+  if (settings.personGeneration) imageConfig.personGeneration = settings.personGeneration;
+
+  if (Object.keys(imageConfig).length > 0) {
+    config.imageConfig = imageConfig;
+  }
+
+  // General generation settings
+  if (settings.temperature !== undefined && settings.temperature !== '') {
+    config.temperature = Number(settings.temperature);
   }
 
   const response = await client.models.generateContent({
