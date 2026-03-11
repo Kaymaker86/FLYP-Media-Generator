@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useRef } from 'react';
 import GenerationTab from '@/components/GenerationTab';
-import HistoryPanel from '@/components/HistoryPanel';
+import HistoryPanel, { type GenerationMetadata } from '@/components/HistoryPanel';
 import { getEnabledModels } from '@/lib/modelRegistry';
 import { type AttachedMedia } from '@/lib/types';
 import { v4 as uuidv4 } from 'uuid';
@@ -13,12 +13,16 @@ interface Tab {
   initialModelId?: string;
   initialSettings?: Record<string, Record<string, string | number | boolean>>;
   initialMedia?: AttachedMedia[];
+  initialPrompt?: string;
+  initialResultUrl?: string;
+  initialResultType?: 'image' | 'video' | 'audio';
 }
 
 interface TabState {
   modelId: string;
   settings: Record<string, Record<string, string | number | boolean>>;
   media: AttachedMedia[];
+  prompt: string;
 }
 
 export default function Home() {
@@ -33,7 +37,7 @@ export default function Home() {
   const tabStatesRef = useRef<Record<string, TabState>>({});
 
   const addTab = useCallback(() => {
-    // Inherit model and settings from the active tab
+    // Inherit everything from the active tab
     const activeState = tabStatesRef.current[activeTabId];
     const newTab: Tab = {
       id: uuidv4(),
@@ -43,10 +47,37 @@ export default function Home() {
       initialModelId: activeState?.modelId,
       initialSettings: activeState?.settings ? { ...activeState.settings } : undefined,
       initialMedia: activeState?.media ? [...activeState.media] : undefined,
+      initialPrompt: activeState?.prompt,
     };
     setTabs((prev) => [...prev, newTab]);
     setActiveTabId(newTab.id);
   }, [activeTabId, defaultModel.displayName]);
+
+  const handleOpenFromHistory = useCallback(
+    (metadata: GenerationMetadata, resultUrl: string, resultType: 'image' | 'video' | 'audio') => {
+      const modelName = getEnabledModels().find((m) => m.id === metadata.modelId)?.displayName || metadata.modelId;
+      const newTab: Tab = {
+        id: uuidv4(),
+        label: modelName,
+        initialModelId: metadata.modelId,
+        initialSettings: metadata.settings ? { [metadata.modelId]: metadata.settings } : undefined,
+        initialMedia: metadata.media?.map((m) => ({
+          id: m.id,
+          type: (m.blobUrl ? 'url' : 'file') as 'file' | 'url',
+          filename: m.filename,
+          mimeType: m.mimeType,
+          previewUrl: m.previewUrl,
+          blobUrl: m.blobUrl,
+        })),
+        initialPrompt: metadata.prompt,
+        initialResultUrl: resultUrl,
+        initialResultType: resultType,
+      };
+      setTabs((prev) => [...prev, newTab]);
+      setActiveTabId(newTab.id);
+    },
+    []
+  );
 
   const closeTab = useCallback(
     (tabId: string) => {
@@ -73,7 +104,7 @@ export default function Home() {
     (tabId: string, model: { id: string; displayName: string }) => {
       updateTabLabel(tabId, model.displayName);
       if (!tabStatesRef.current[tabId]) {
-        tabStatesRef.current[tabId] = { modelId: model.id, settings: {}, media: [] };
+        tabStatesRef.current[tabId] = { modelId: model.id, settings: {}, media: [], prompt: '' };
       } else {
         tabStatesRef.current[tabId].modelId = model.id;
       }
@@ -84,7 +115,7 @@ export default function Home() {
   const handleSettingsChange = useCallback(
     (tabId: string, modelId: string, settings: Record<string, string | number | boolean>) => {
       if (!tabStatesRef.current[tabId]) {
-        tabStatesRef.current[tabId] = { modelId, settings: {}, media: [] };
+        tabStatesRef.current[tabId] = { modelId, settings: {}, media: [], prompt: '' };
       }
       tabStatesRef.current[tabId].settings[modelId] = settings;
     },
@@ -94,9 +125,20 @@ export default function Home() {
   const handleMediaChange = useCallback(
     (tabId: string, media: AttachedMedia[]) => {
       if (!tabStatesRef.current[tabId]) {
-        tabStatesRef.current[tabId] = { modelId: defaultModel.id, settings: {}, media };
+        tabStatesRef.current[tabId] = { modelId: defaultModel.id, settings: {}, media, prompt: '' };
       } else {
         tabStatesRef.current[tabId].media = media;
+      }
+    },
+    [defaultModel.id]
+  );
+
+  const handlePromptChange = useCallback(
+    (tabId: string, prompt: string) => {
+      if (!tabStatesRef.current[tabId]) {
+        tabStatesRef.current[tabId] = { modelId: defaultModel.id, settings: {}, media: [], prompt };
+      } else {
+        tabStatesRef.current[tabId].prompt = prompt;
       }
     },
     [defaultModel.id]
@@ -172,16 +214,20 @@ export default function Home() {
               initialModelId={tab.initialModelId}
               initialSettings={tab.initialSettings}
               initialMedia={tab.initialMedia}
+              initialPrompt={tab.initialPrompt}
+              initialResultUrl={tab.initialResultUrl}
+              initialResultType={tab.initialResultType}
               onModelChange={(model) => handleModelChange(tab.id, model)}
               onSettingsSnapshot={(modelId, s) => handleSettingsChange(tab.id, modelId, s)}
               onMediaSnapshot={(m) => handleMediaChange(tab.id, m)}
+              onPromptSnapshot={(p) => handlePromptChange(tab.id, p)}
             />
           </div>
         ))}
       </div>
 
       {/* History panel */}
-      <HistoryPanel open={historyOpen} onClose={() => setHistoryOpen(false)} />
+      <HistoryPanel open={historyOpen} onClose={() => setHistoryOpen(false)} onOpenInTab={handleOpenFromHistory} />
     </div>
   );
 }

@@ -8,7 +8,7 @@ export const maxDuration = 60;
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { operationName } = body;
+    const { operationName, metadata } = body;
 
     if (!operationName) {
       return NextResponse.json({ error: 'operationName is required' }, { status: 400 });
@@ -25,18 +25,30 @@ export async function POST(request: NextRequest) {
     }
 
     if (result.video) {
-      // Store the video in Vercel Blob
-      const pathname = `generated/${uuidv4()}.mp4`;
+      const generationId = uuidv4();
+      const pathname = `generated/${generationId}.mp4`;
       const blob = await put(pathname, result.video.data, {
         access: 'public',
         contentType: result.video.mimeType,
         addRandomSuffix: false,
       });
 
+      // Store metadata if provided
+      if (metadata) {
+        await put(`generated/${generationId}.meta.json`, JSON.stringify({
+          ...metadata,
+          generatedAt: new Date().toISOString(),
+        }), {
+          access: 'public',
+          contentType: 'application/json',
+          addRandomSuffix: false,
+        });
+      }
+
       return NextResponse.json({
         done: true,
         result: {
-          id: uuidv4(),
+          id: generationId,
           status: 'complete',
           items: [
             {

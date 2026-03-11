@@ -42,16 +42,25 @@ export async function POST(request: NextRequest) {
     });
 
     // Store audio in Vercel Blob
+    const generationId = uuidv4();
     const ext = result.audio.mimeType.includes('wav') ? 'wav' : 'mp3';
-    const pathname = `generated/${uuidv4()}.${ext}`;
+    const pathname = `generated/${generationId}.${ext}`;
     const blob = await put(pathname, result.audio.data, {
       access: 'public',
       contentType: result.audio.mimeType,
       addRandomSuffix: false,
     });
 
+    // Store metadata
+    const metadata = { modelId, prompt, settings, generatedAt: new Date().toISOString() };
+    await put(`generated/${generationId}.meta.json`, JSON.stringify(metadata), {
+      access: 'public',
+      contentType: 'application/json',
+      addRandomSuffix: false,
+    });
+
     return NextResponse.json({
-      id: uuidv4(),
+      id: generationId,
       status: 'complete',
       items: [
         {

@@ -8,6 +8,15 @@ interface HistoryItem {
   contentType: string;
   uploadedAt: string;
   size: number;
+  metadataUrl?: string;
+}
+
+interface GenerationMetadata {
+  modelId: string;
+  prompt: string;
+  settings: Record<string, string | number | boolean>;
+  media?: { id: string; type: string; filename: string; mimeType: string; previewUrl: string; blobUrl?: string }[];
+  generatedAt: string;
 }
 
 interface LightboxState {
@@ -105,19 +114,10 @@ function Lightbox({
         onClick={(e) => e.stopPropagation()}
       >
         {item.type === 'image' && (
-          <img
-            src={item.url}
-            alt="History item fullscreen"
-            className="max-w-full max-h-[90vh] object-contain rounded-lg"
-          />
+          <img src={item.url} alt="History item fullscreen" className="max-w-full max-h-[90vh] object-contain rounded-lg" />
         )}
         {item.type === 'video' && (
-          <video
-            src={item.url}
-            controls
-            autoPlay
-            className="max-w-full max-h-[90vh] rounded-lg"
-          />
+          <video src={item.url} controls autoPlay className="max-w-full max-h-[90vh] rounded-lg" />
         )}
         {item.type === 'audio' && (
           <div className="bg-gray-900 rounded-lg p-8 min-w-[300px]">
@@ -132,9 +132,10 @@ function Lightbox({
 interface HistoryPanelProps {
   open: boolean;
   onClose: () => void;
+  onOpenInTab?: (metadata: GenerationMetadata, resultUrl: string, resultType: 'image' | 'video' | 'audio') => void;
 }
 
-export default function HistoryPanel({ open, onClose }: HistoryPanelProps) {
+export default function HistoryPanel({ open, onClose, onOpenInTab }: HistoryPanelProps) {
   const [items, setItems] = useState<HistoryItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -166,36 +167,39 @@ export default function HistoryPanel({ open, onClose }: HistoryPanelProps) {
     return () => window.removeEventListener('keydown', handleKey);
   }, [open, onClose, lightboxItem]);
 
+  const handleOpenInTab = useCallback(async (item: HistoryItem) => {
+    if (!item.metadataUrl || !onOpenInTab) return;
+    try {
+      const res = await fetch(item.metadataUrl);
+      const metadata: GenerationMetadata = await res.json();
+      const mediaType = getMediaType(item.contentType);
+      onOpenInTab(metadata, item.url, mediaType);
+      onClose();
+    } catch {
+      // Metadata fetch failed, can't reopen
+    }
+  }, [onOpenInTab, onClose]);
+
   return (
     <>
-      {/* Backdrop */}
       {open && (
-        <div
-          className="fixed inset-0 bg-black/50 z-40"
-          onClick={onClose}
-        />
+        <div className="fixed inset-0 bg-black/50 z-40" onClick={onClose} />
       )}
 
-      {/* Panel */}
       <div
         className={`fixed top-0 right-0 h-full w-full max-w-md bg-gray-900 border-l border-gray-800 z-50 transform transition-transform duration-300 ease-in-out ${
           open ? 'translate-x-0' : 'translate-x-full'
         }`}
       >
-        {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-gray-800">
           <h2 className="text-lg font-semibold text-white">History</h2>
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-white transition-colors"
-          >
+          <button onClick={onClose} className="text-gray-400 hover:text-white transition-colors">
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
         </div>
 
-        {/* Content */}
         <div className="p-4 overflow-y-auto h-[calc(100%-64px)]">
           {loading && (
             <div className="flex flex-col items-center justify-center py-12 space-y-4">
@@ -211,9 +215,7 @@ export default function HistoryPanel({ open, onClose }: HistoryPanelProps) {
           )}
 
           {!loading && !error && items.length === 0 && (
-            <p className="text-gray-500 text-sm text-center py-12">
-              No generated assets yet.
-            </p>
+            <p className="text-gray-500 text-sm text-center py-12">No generated assets yet.</p>
           )}
 
           {!loading && !error && items.length > 0 && (
@@ -227,25 +229,16 @@ export default function HistoryPanel({ open, onClose }: HistoryPanelProps) {
                     key={item.pathname}
                     className="bg-gray-800 rounded-lg overflow-hidden cursor-pointer group"
                     onClick={() =>
-                      setLightboxItem({
-                        url: item.url,
-                        type: mediaType,
-                        filename,
-                      })
+                      setLightboxItem({ url: item.url, type: mediaType, filename })
                     }
                   >
-                    {/* Thumbnail / Icon */}
                     {mediaType === 'image' ? (
                       <div className="aspect-square relative overflow-hidden">
-                        <img
-                          src={item.url}
-                          alt={filename}
-                          className="w-full h-full object-cover"
-                        />
+                        <img src={item.url} alt={filename} className="w-full h-full object-cover" />
                         <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors" />
                       </div>
                     ) : (
-                      <div className="aspect-square bg-gray-750 flex items-center justify-center bg-gray-800">
+                      <div className="aspect-square flex items-center justify-center bg-gray-800">
                         {mediaType === 'video' ? (
                           <svg className="w-12 h-12 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
@@ -258,17 +251,28 @@ export default function HistoryPanel({ open, onClose }: HistoryPanelProps) {
                       </div>
                     )}
 
-                    {/* Info */}
                     <div className="p-2 space-y-1">
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs text-gray-400 truncate max-w-[80%]">
-                          {filename}
-                        </span>
-                        <DownloadButton url={item.url} filename={filename} />
+                      <div className="flex items-center justify-between gap-1">
+                        <span className="text-xs text-gray-400 truncate flex-1">{filename}</span>
+                        <div className="flex gap-1 shrink-0">
+                          {item.metadataUrl && onOpenInTab && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleOpenInTab(item);
+                              }}
+                              className="flex items-center text-xs bg-gray-700 hover:bg-gray-600 text-gray-300 px-2 py-1 rounded font-medium transition-colors"
+                              title="Open in new tab with same settings"
+                            >
+                              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                              </svg>
+                            </button>
+                          )}
+                          <DownloadButton url={item.url} filename={filename} />
+                        </div>
                       </div>
-                      <p className="text-xs text-gray-600">
-                        {formatDate(item.uploadedAt)}
-                      </p>
+                      <p className="text-xs text-gray-600">{formatDate(item.uploadedAt)}</p>
                     </div>
                   </div>
                 );
@@ -278,10 +282,11 @@ export default function HistoryPanel({ open, onClose }: HistoryPanelProps) {
         </div>
       </div>
 
-      {/* Lightbox */}
       {lightboxItem && (
         <Lightbox item={lightboxItem} onClose={() => setLightboxItem(null)} />
       )}
     </>
   );
 }
+
+export type { GenerationMetadata };

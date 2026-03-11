@@ -43,10 +43,11 @@ export async function POST(request: NextRequest) {
     });
 
     // Store generated images in Vercel Blob
+    const generationId = uuidv4();
     const items = await Promise.all(
       result.images.map(async (img, idx) => {
         const ext = img.mimeType === 'image/png' ? 'png' : 'jpg';
-        const pathname = `generated/${uuidv4()}-${idx}.${ext}`;
+        const pathname = `generated/${generationId}-${idx}.${ext}`;
         const blob = await put(pathname, img.data, {
           access: 'public',
           contentType: img.mimeType,
@@ -61,8 +62,16 @@ export async function POST(request: NextRequest) {
       })
     );
 
+    // Store metadata for history reopening
+    const metadata = { modelId, prompt, settings, media, generatedAt: new Date().toISOString() };
+    await put(`generated/${generationId}.meta.json`, JSON.stringify(metadata), {
+      access: 'public',
+      contentType: 'application/json',
+      addRandomSuffix: false,
+    });
+
     return NextResponse.json({
-      id: uuidv4(),
+      id: generationId,
       status: 'complete',
       items,
       text: result.text,

@@ -13,25 +13,43 @@ interface GenerationTabProps {
   onModelChange: (model: ModelDef) => void;
   onSettingsSnapshot?: (modelId: string, settings: Record<string, string | number | boolean>) => void;
   onMediaSnapshot?: (media: AttachedMedia[]) => void;
+  onPromptSnapshot?: (prompt: string) => void;
   initialModelId?: string;
   initialSettings?: Record<string, Record<string, string | number | boolean>>;
   initialMedia?: AttachedMedia[];
+  initialPrompt?: string;
+  initialResultUrl?: string;
+  initialResultType?: 'image' | 'video' | 'audio';
 }
 
-export default function GenerationTab({ onModelChange, onSettingsSnapshot, onMediaSnapshot, initialModelId, initialSettings, initialMedia }: GenerationTabProps) {
+export default function GenerationTab({ onModelChange, onSettingsSnapshot, onMediaSnapshot, onPromptSnapshot, initialModelId, initialSettings, initialMedia, initialPrompt, initialResultUrl, initialResultType }: GenerationTabProps) {
   const [selectedModel, setSelectedModel] = useState<ModelDef>(() => {
     if (initialModelId) {
       return getModel(initialModelId) || getEnabledModels()[0];
     }
     return getEnabledModels()[0];
   });
-  const [prompt, setPrompt] = useState('');
+  const [prompt, setPrompt] = useState(initialPrompt || '');
   const [media, setMedia] = useState<AttachedMedia[]>(initialMedia || []);
   const [settings, setSettings] = useState<Record<string, Record<string, string | number | boolean>>>(
     initialSettings ? { ...initialSettings } : {}
   );
   const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<GenerationResult | null>(null);
+  const [result, setResult] = useState<GenerationResult | null>(() => {
+    if (initialResultUrl && initialResultType) {
+      return {
+        id: 'history',
+        status: 'complete',
+        items: [{
+          type: initialResultType,
+          url: initialResultUrl,
+          mimeType: initialResultType === 'image' ? 'image/png' : initialResultType === 'video' ? 'video/mp4' : 'audio/wav',
+          filename: `reopened.${initialResultType === 'image' ? 'png' : initialResultType === 'video' ? 'mp4' : 'wav'}`,
+        }],
+      };
+    }
+    return null;
+  });
   const [resultText, setResultText] = useState<string | undefined>();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -67,6 +85,13 @@ export default function GenerationTab({ onModelChange, onSettingsSnapshot, onMed
       onMediaSnapshot(media);
     }
   }, [media, onMediaSnapshot]);
+
+  // Report prompt back to parent for tab inheritance
+  useEffect(() => {
+    if (onPromptSnapshot) {
+      onPromptSnapshot(prompt);
+    }
+  }, [prompt, onPromptSnapshot]);
 
   const handleSettingChange = useCallback(
     (key: string, value: string | number | boolean) => {
@@ -106,13 +131,13 @@ export default function GenerationTab({ onModelChange, onSettingsSnapshot, onMed
     [onModelChange]
   );
 
-  const pollOperation = useCallback((operationName: string) => {
+  const pollOperation = useCallback((operationName: string, metadata?: Record<string, unknown>) => {
     pollRef.current = setInterval(async () => {
       try {
         const res = await fetch('/api/poll-operation', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ operationName }),
+          body: JSON.stringify({ operationName, metadata }),
         });
         const data = await res.json();
 
@@ -177,7 +202,11 @@ export default function GenerationTab({ onModelChange, onSettingsSnapshot, onMed
 
       if (data.status === 'generating' && data.operationName) {
         setResult({ id: data.id, status: 'generating', items: [], operationName: data.operationName });
-        pollOperation(data.operationName);
+        pollOperation(data.operationName, {
+          modelId: selectedModel.id,
+          prompt,
+          settings: currentSettings,
+        });
       } else {
         setResult(data);
         if (data.text) setResultText(data.text);
