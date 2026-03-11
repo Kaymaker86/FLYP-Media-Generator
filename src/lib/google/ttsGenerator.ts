@@ -1,4 +1,5 @@
 import { getGoogleClient } from './client';
+import { buildSafetySettings } from './safetySettings';
 
 interface TTSOptions {
   modelId: string;
@@ -61,6 +62,9 @@ export async function generateTTS(options: TTSOptions): Promise<TTSResult> {
   }
 
   config.speechConfig = speechConfig;
+
+  // Safety settings
+  config.safetySettings = buildSafetySettings(settings.safetyTolerance);
 
   const response = await client.models.generateContent({
     model: modelId,

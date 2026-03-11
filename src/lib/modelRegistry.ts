@@ -152,6 +152,22 @@ const ttsLanguage: ModelSetting = {
   default: '',
 };
 
+const safetyTolerance: ModelSetting = {
+  key: 'safetyTolerance',
+  label: 'Safety Tolerance',
+  type: 'select',
+  options: [
+    { value: '1', label: '1 — Strictest' },
+    { value: '2', label: '2 — Strict' },
+    { value: '3', label: '3 — Moderate' },
+    { value: '4', label: '4 — Relaxed' },
+    { value: '5', label: '5 — Permissive' },
+    { value: '6', label: '6 — Least restrictive' },
+  ],
+  default: '3',
+  description: 'Controls how aggressively content is filtered (1 = most restrictive, 6 = least)',
+};
+
 // ── Model registry ────────────────────────────────────────────────
 
 export const modelRegistry: ModelDef[] = [
@@ -169,6 +185,7 @@ export const modelRegistry: ModelDef[] = [
       imageCompressionQuality,
       imagePersonGeneration,
       imageTemperature,
+      safetyTolerance,
     ],
     outputType: 'image',
     flowType: 'immediate',
@@ -188,6 +205,7 @@ export const modelRegistry: ModelDef[] = [
       imageCompressionQuality,
       imagePersonGeneration,
       imageTemperature,
+      safetyTolerance,
     ],
     outputType: 'image',
     flowType: 'immediate',
@@ -206,6 +224,7 @@ export const modelRegistry: ModelDef[] = [
       imageCompressionQuality,
       imagePersonGeneration,
       imageTemperature,
+      safetyTolerance,
     ],
     outputType: 'image',
     flowType: 'immediate',
@@ -307,6 +326,7 @@ export const modelRegistry: ModelDef[] = [
         ],
         default: 'OPTIMIZED',
       },
+      safetyTolerance,
     ],
     outputType: 'video',
     flowType: 'long_running',
@@ -320,7 +340,7 @@ export const modelRegistry: ModelDef[] = [
     description: 'Fast text-to-speech',
     mediaType: 'audio',
     acceptedInputs: ['text'],
-    settings: [ttsVoice, ttsMultiSpeaker, ttsLanguage],
+    settings: [ttsVoice, ttsMultiSpeaker, ttsLanguage, safetyTolerance],
     outputType: 'audio',
     flowType: 'immediate',
     enabled: true,
@@ -331,7 +351,7 @@ export const modelRegistry: ModelDef[] = [
     description: 'High quality text-to-speech',
     mediaType: 'audio',
     acceptedInputs: ['text'],
-    settings: [ttsVoice, ttsMultiSpeaker, ttsLanguage],
+    settings: [ttsVoice, ttsMultiSpeaker, ttsLanguage, safetyTolerance],
     outputType: 'audio',
     flowType: 'immediate',
     enabled: true,

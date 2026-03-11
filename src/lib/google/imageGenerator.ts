@@ -1,4 +1,5 @@
 import { getGoogleClient } from './client';
+import { buildSafetySettings } from './safetySettings';
 import { AttachedMedia } from '../types';
 import { type Part } from '@google/genai';
 
@@ -64,6 +65,9 @@ export async function generateImage(options: ImageGenOptions): Promise<ImageGenR
   if (settings.temperature !== undefined && settings.temperature !== '') {
     config.temperature = Number(settings.temperature);
   }
+
+  // Safety settings
+  config.safetySettings = buildSafetySettings(settings.safetyTolerance);
 
   const response = await client.models.generateContent({
     model: modelId,
