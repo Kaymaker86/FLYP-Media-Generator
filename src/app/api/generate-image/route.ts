@@ -69,7 +69,9 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     console.error('Image generation error:', error);
-    const message = error instanceof Error ? error.message : 'Generation failed';
+    const message = error instanceof Error
+      ? `${error.message}${error.cause ? ` (${JSON.stringify(error.cause)})` : ''}`
+      : String(error);
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

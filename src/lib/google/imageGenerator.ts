@@ -28,75 +28,88 @@ async function mediaToInlinePart(media: AttachedMedia): Promise<Part> {
   };
 }
 
-export async function generateImage(options: ImageGenOptions): Promise<ImageGenResult> {
+async function generateSingle(
+  modelId: string,
+  parts: Part[],
+  settings: Record<string, string | number | boolean>
+): Promise<ImageGenResult> {
   const client = getGoogleClient();
-  const { modelId, prompt, media, settings } = options;
 
-  // Build parts
-  const parts: Part[] = [];
-
-  for (const m of media) {
-    parts.push(await mediaToInlinePart(m));
-  }
-
-  parts.push({ text: prompt });
-
-  // Build generation config
   const config: Record<string, unknown> = {
     responseModalities: ['TEXT', 'IMAGE'],
   };
 
-  // Image-specific config (nested under imageConfig)
-  const imageConfig: Record<string, unknown> = {};
-
-  if (settings.aspectRatio) imageConfig.aspectRatio = settings.aspectRatio;
-  if (settings.imageSize) imageConfig.imageSize = settings.imageSize;
-  if (settings.outputMimeType) imageConfig.outputMimeType = settings.outputMimeType;
+  // Image config
+  if (settings.aspectRatio) config.aspectRatio = settings.aspectRatio;
+  if (settings.personGeneration) config.personGeneration = settings.personGeneration;
+  if (settings.outputMimeType) config.outputMimeType = settings.outputMimeType;
   if (settings.outputCompressionQuality) {
-    imageConfig.outputCompressionQuality = Number(settings.outputCompressionQuality);
+    config.outputCompressionQuality = Number(settings.outputCompressionQuality);
   }
-  if (settings.personGeneration) imageConfig.personGeneration = settings.personGeneration;
+  if (settings.imageSize) config.imageSize = settings.imageSize;
 
-  if (Object.keys(imageConfig).length > 0) {
-    config.imageConfig = imageConfig;
-  }
-
-  // General generation settings
-  if (settings.temperature !== undefined && settings.temperature !== '') {
+  // General settings
+  if (settings.temperature !== undefined && settings.temperature !== '' && Number(settings.temperature) !== 1) {
     config.temperature = Number(settings.temperature);
   }
 
   // Safety settings
   config.safetySettings = buildSafetySettings(settings.safetyTolerance);
 
-  const numberOfImages = Math.min(4, Math.max(1, Number(settings.numberOfImages) || 1));
+  const response = await client.models.generateContent({
+    model: modelId,
+    contents: [{ role: 'user', parts }],
+    config,
+  });
 
-  // Make parallel calls for multiple images
-  const requests = Array.from({ length: numberOfImages }, () =>
-    client.models.generateContent({
-      model: modelId,
-      contents: [{ role: 'user', parts }],
-      config,
-    })
-  );
-
-  const responses = await Promise.allSettled(requests);
   const result: ImageGenResult = { images: [] };
 
-  for (const res of responses) {
-    if (res.status === 'rejected') continue;
-    const response = res.value;
-    if (response.candidates?.[0]?.content?.parts) {
-      for (const part of response.candidates[0].content.parts) {
-        if (part.inlineData) {
-          const data = Buffer.from(part.inlineData.data!, 'base64');
-          result.images.push({ data, mimeType: part.inlineData.mimeType || 'image/png' });
-        } else if (part.text && !result.text) {
-          result.text = part.text;
-        }
+  if (response.candidates?.[0]?.content?.parts) {
+    for (const part of response.candidates[0].content.parts) {
+      if (part.inlineData) {
+        const data = Buffer.from(part.inlineData.data!, 'base64');
+        result.images.push({ data, mimeType: part.inlineData.mimeType || 'image/png' });
+      } else if (part.text) {
+        result.text = part.text;
       }
     }
   }
 
   return result;
+}
+
+export async function generateImage(options: ImageGenOptions): Promise<ImageGenResult> {
+  const { modelId, prompt, media, settings } = options;
+
+  // Build parts
+  const parts: Part[] = [];
+  for (const m of media) {
+    parts.push(await mediaToInlinePart(m));
+  }
+  parts.push({ text: prompt });
+
+  const numberOfImages = Math.min(4, Math.max(1, Number(settings.numberOfImages) || 1));
+
+  if (numberOfImages === 1) {
+    return generateSingle(modelId, parts, settings);
+  }
+
+  // Parallel calls for multiple images
+  const responses = await Promise.allSettled(
+    Array.from({ length: numberOfImages }, () =>
+      generateSingle(modelId, parts, settings)
+    )
+  );
+
+  const combined: ImageGenResult = { images: [] };
+  for (const res of responses) {
+    if (res.status === 'fulfilled') {
+      combined.images.push(...res.value.images);
+      if (res.value.text && !combined.text) {
+        combined.text = res.value.text;
+      }
+    }
+  }
+
+  return combined;
 }
