@@ -35,18 +35,20 @@ async function generateSingle(
 ): Promise<ImageGenResult> {
   const client = getGoogleClient();
 
+  // Image-specific settings must be nested under imageConfig
+  const imageConfig: Record<string, unknown> = {};
+  if (settings.aspectRatio) imageConfig.aspectRatio = settings.aspectRatio;
+  if (settings.imageSize) imageConfig.imageSize = settings.imageSize;
+  if (settings.personGeneration) imageConfig.personGeneration = settings.personGeneration;
+  if (settings.outputMimeType) imageConfig.outputMimeType = settings.outputMimeType;
+  if (settings.outputCompressionQuality) {
+    imageConfig.outputCompressionQuality = Number(settings.outputCompressionQuality);
+  }
+
   const config: Record<string, unknown> = {
     responseModalities: ['TEXT', 'IMAGE'],
+    imageConfig,
   };
-
-  // Image config
-  if (settings.aspectRatio) config.aspectRatio = settings.aspectRatio;
-  if (settings.personGeneration) config.personGeneration = settings.personGeneration;
-  if (settings.outputMimeType) config.outputMimeType = settings.outputMimeType;
-  if (settings.outputCompressionQuality) {
-    config.outputCompressionQuality = Number(settings.outputCompressionQuality);
-  }
-  if (settings.imageSize) config.imageSize = settings.imageSize;
 
   // General settings
   if (settings.temperature !== undefined && settings.temperature !== '' && Number(settings.temperature) !== 1) {
