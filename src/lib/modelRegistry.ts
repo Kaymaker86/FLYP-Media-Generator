@@ -6,7 +6,7 @@ export type OutputType = 'image' | 'video' | 'audio';
 export interface ModelSetting {
   key: string;
   label: string;
-  type: 'select' | 'number' | 'text' | 'toggle' | 'multi_speaker';
+  type: 'select' | 'number' | 'text' | 'toggle' | 'slider' | 'multi_speaker';
   options?: { value: string; label: string }[];
   default?: string | number | boolean;
   min?: number;
@@ -152,6 +152,17 @@ const ttsLanguage: ModelSetting = {
   default: '',
 };
 
+const numberOfImages: ModelSetting = {
+  key: 'numberOfImages',
+  label: 'Number of Images',
+  type: 'slider',
+  min: 1,
+  max: 4,
+  step: 1,
+  default: 1,
+  description: 'How many images to generate per request',
+};
+
 const safetyTolerance: ModelSetting = {
   key: 'safetyTolerance',
   label: 'Safety Tolerance',
@@ -179,6 +190,7 @@ export const modelRegistry: ModelDef[] = [
     mediaType: 'image',
     acceptedInputs: ['text', 'image', 'image_url', 'clipboard_image', 'multi_image'],
     settings: [
+      numberOfImages,
       imageAspectRatio,
       imageSize,
       imageOutputFormat,
@@ -199,6 +211,7 @@ export const modelRegistry: ModelDef[] = [
     mediaType: 'image',
     acceptedInputs: ['text', 'image', 'image_url', 'clipboard_image', 'multi_image'],
     settings: [
+      numberOfImages,
       imageAspectRatio,
       imageSize,
       imageOutputFormat,
@@ -219,6 +232,7 @@ export const modelRegistry: ModelDef[] = [
     mediaType: 'image',
     acceptedInputs: ['text', 'image', 'image_url', 'clipboard_image'],
     settings: [
+      numberOfImages,
       imageAspectRatio,
       imageOutputFormat,
       imageCompressionQuality,
@@ -229,7 +243,7 @@ export const modelRegistry: ModelDef[] = [
     outputType: 'image',
     flowType: 'immediate',
     enabled: true,
-    maxImages: 1,
+    maxImages: 4,
   },
 
   // ── Video Model ──
@@ -302,9 +316,10 @@ export const modelRegistry: ModelDef[] = [
       {
         key: 'numberOfVideos',
         label: 'Number of Videos',
-        type: 'number',
+        type: 'slider',
         min: 1,
         max: 4,
+        step: 1,
         default: 1,
       },
       {

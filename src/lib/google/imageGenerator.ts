@@ -69,21 +69,31 @@ export async function generateImage(options: ImageGenOptions): Promise<ImageGenR
   // Safety settings
   config.safetySettings = buildSafetySettings(settings.safetyTolerance);
 
-  const response = await client.models.generateContent({
-    model: modelId,
-    contents: [{ role: 'user', parts }],
-    config,
-  });
+  const numberOfImages = Math.min(4, Math.max(1, Number(settings.numberOfImages) || 1));
 
+  // Make parallel calls for multiple images
+  const requests = Array.from({ length: numberOfImages }, () =>
+    client.models.generateContent({
+      model: modelId,
+      contents: [{ role: 'user', parts }],
+      config,
+    })
+  );
+
+  const responses = await Promise.allSettled(requests);
   const result: ImageGenResult = { images: [] };
 
-  if (response.candidates && response.candidates[0]?.content?.parts) {
-    for (const part of response.candidates[0].content.parts) {
-      if (part.inlineData) {
-        const data = Buffer.from(part.inlineData.data!, 'base64');
-        result.images.push({ data, mimeType: part.inlineData.mimeType || 'image/png' });
-      } else if (part.text) {
-        result.text = part.text;
+  for (const res of responses) {
+    if (res.status === 'rejected') continue;
+    const response = res.value;
+    if (response.candidates?.[0]?.content?.parts) {
+      for (const part of response.candidates[0].content.parts) {
+        if (part.inlineData) {
+          const data = Buffer.from(part.inlineData.data!, 'base64');
+          result.images.push({ data, mimeType: part.inlineData.mimeType || 'image/png' });
+        } else if (part.text && !result.text) {
+          result.text = part.text;
+        }
       }
     }
   }

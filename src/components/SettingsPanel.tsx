@@ -69,6 +69,24 @@ function SettingControl({
         </div>
       );
 
+    case 'slider':
+      return (
+        <div className="flex items-center gap-3">
+          <input
+            type="range"
+            value={Number(currentValue)}
+            min={setting.min}
+            max={setting.max}
+            step={setting.step || 1}
+            onChange={(e) => onChange(Number(e.target.value))}
+            className="flex-1 h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-blue-500"
+          />
+          <span className="text-sm text-gray-300 font-mono w-6 text-center">
+            {Number(currentValue)}
+          </span>
+        </div>
+      );
+
     case 'text':
       return (
         <input
