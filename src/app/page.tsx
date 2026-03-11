@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import GenerationTab from '@/components/GenerationTab';
 import HistoryPanel from '@/components/HistoryPanel';
 import { getEnabledModels } from '@/lib/modelRegistry';
@@ -9,35 +9,55 @@ import { v4 as uuidv4 } from 'uuid';
 interface Tab {
   id: string;
   label: string;
+  initialModelId?: string;
+  initialSettings?: Record<string, Record<string, string | number | boolean>>;
+}
+
+// Store for reading current tab state (model + settings) from GenerationTab
+interface TabState {
+  modelId: string;
+  settings: Record<string, Record<string, string | number | boolean>>;
 }
 
 export default function Home() {
-  const defaultModelName = getEnabledModels()[0].displayName;
+  const defaultModel = getEnabledModels()[0];
   const [tabs, setTabs] = useState<Tab[]>([
-    { id: uuidv4(), label: defaultModelName },
+    { id: uuidv4(), label: defaultModel.displayName },
   ]);
   const [activeTabId, setActiveTabId] = useState(tabs[0].id);
   const [historyOpen, setHistoryOpen] = useState(false);
 
+  // Track current model/settings per tab so new tabs can inherit
+  const tabStatesRef = useRef<Record<string, TabState>>({});
+
   const addTab = useCallback(() => {
-    const newTab: Tab = { id: uuidv4(), label: defaultModelName };
+    // Inherit model and settings from the active tab
+    const activeState = tabStatesRef.current[activeTabId];
+    const newTab: Tab = {
+      id: uuidv4(),
+      label: activeState?.modelId
+        ? getEnabledModels().find((m) => m.id === activeState.modelId)?.displayName || defaultModel.displayName
+        : defaultModel.displayName,
+      initialModelId: activeState?.modelId,
+      initialSettings: activeState?.settings ? { ...activeState.settings } : undefined,
+    };
     setTabs((prev) => [...prev, newTab]);
     setActiveTabId(newTab.id);
-  }, [defaultModelName]);
+  }, [activeTabId, defaultModel.displayName]);
 
   const closeTab = useCallback(
     (tabId: string) => {
       setTabs((prev) => {
-        if (prev.length <= 1) return prev; // Don't close last tab
+        if (prev.length <= 1) return prev;
         const filtered = prev.filter((t) => t.id !== tabId);
         if (activeTabId === tabId) {
-          // Switch to the tab before, or the first one
           const closedIdx = prev.findIndex((t) => t.id === tabId);
           const newIdx = Math.max(0, closedIdx - 1);
           setActiveTabId(filtered[newIdx].id);
         }
         return filtered;
       });
+      delete tabStatesRef.current[tabId];
     },
     [activeTabId]
   );
@@ -45,6 +65,28 @@ export default function Home() {
   const updateTabLabel = useCallback((tabId: string, label: string) => {
     setTabs((prev) => prev.map((t) => (t.id === tabId ? { ...t, label } : t)));
   }, []);
+
+  const handleModelChange = useCallback(
+    (tabId: string, model: { id: string; displayName: string }) => {
+      updateTabLabel(tabId, model.displayName);
+      if (!tabStatesRef.current[tabId]) {
+        tabStatesRef.current[tabId] = { modelId: model.id, settings: {} };
+      } else {
+        tabStatesRef.current[tabId].modelId = model.id;
+      }
+    },
+    [updateTabLabel]
+  );
+
+  const handleSettingsChange = useCallback(
+    (tabId: string, modelId: string, settings: Record<string, string | number | boolean>) => {
+      if (!tabStatesRef.current[tabId]) {
+        tabStatesRef.current[tabId] = { modelId, settings: {} };
+      }
+      tabStatesRef.current[tabId].settings[modelId] = settings;
+    },
+    []
+  );
 
   return (
     <div className="h-screen bg-gray-950 text-white flex flex-col">
@@ -85,7 +127,7 @@ export default function Home() {
           <button
             onClick={addTab}
             className="px-3 py-2 text-gray-500 hover:text-white hover:bg-gray-800 transition-colors shrink-0"
-            title="New tab"
+            title="New tab (inherits current model & settings)"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -113,7 +155,10 @@ export default function Home() {
             className={`absolute inset-0 ${activeTabId === tab.id ? 'z-10' : 'z-0 pointer-events-none invisible'}`}
           >
             <GenerationTab
-              onModelChange={(model) => updateTabLabel(tab.id, model.displayName)}
+              initialModelId={tab.initialModelId}
+              initialSettings={tab.initialSettings}
+              onModelChange={(model) => handleModelChange(tab.id, model)}
+              onSettingsSnapshot={(modelId, s) => handleSettingsChange(tab.id, modelId, s)}
             />
           </div>
         ))}

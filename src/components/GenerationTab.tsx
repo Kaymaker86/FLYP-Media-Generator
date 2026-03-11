@@ -6,18 +6,28 @@ import SettingsPanel from '@/components/SettingsPanel';
 import MediaUpload from '@/components/MediaUpload';
 import ResultGallery from '@/components/ResultGallery';
 import GenerateButton from '@/components/GenerateButton';
-import { getEnabledModels, type ModelDef } from '@/lib/modelRegistry';
+import { getEnabledModels, getModel, type ModelDef } from '@/lib/modelRegistry';
 import { type AttachedMedia, type GenerationResult } from '@/lib/types';
 
 interface GenerationTabProps {
   onModelChange: (model: ModelDef) => void;
+  onSettingsSnapshot?: (modelId: string, settings: Record<string, string | number | boolean>) => void;
+  initialModelId?: string;
+  initialSettings?: Record<string, Record<string, string | number | boolean>>;
 }
 
-export default function GenerationTab({ onModelChange }: GenerationTabProps) {
-  const [selectedModel, setSelectedModel] = useState<ModelDef>(getEnabledModels()[0]);
+export default function GenerationTab({ onModelChange, onSettingsSnapshot, initialModelId, initialSettings }: GenerationTabProps) {
+  const [selectedModel, setSelectedModel] = useState<ModelDef>(() => {
+    if (initialModelId) {
+      return getModel(initialModelId) || getEnabledModels()[0];
+    }
+    return getEnabledModels()[0];
+  });
   const [prompt, setPrompt] = useState('');
   const [media, setMedia] = useState<AttachedMedia[]>([]);
-  const [settings, setSettings] = useState<Record<string, Record<string, string | number | boolean>>>({});
+  const [settings, setSettings] = useState<Record<string, Record<string, string | number | boolean>>>(
+    initialSettings ? { ...initialSettings } : {}
+  );
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<GenerationResult | null>(null);
   const [resultText, setResultText] = useState<string | undefined>();
@@ -41,6 +51,13 @@ export default function GenerationTab({ onModelChange }: GenerationTabProps) {
       if (pollRef.current) clearInterval(pollRef.current);
     };
   }, []);
+
+  // Report settings back to parent for tab inheritance
+  useEffect(() => {
+    if (onSettingsSnapshot && currentSettings && Object.keys(currentSettings).length > 0) {
+      onSettingsSnapshot(selectedModel.id, currentSettings);
+    }
+  }, [selectedModel.id, currentSettings, onSettingsSnapshot]);
 
   const handleSettingChange = useCallback(
     (key: string, value: string | number | boolean) => {
@@ -164,13 +181,19 @@ export default function GenerationTab({ onModelChange }: GenerationTabProps) {
     }
   }, [prompt, selectedModel, media, currentSettings, pollOperation]);
 
-  const handleClear = useCallback(() => {
+  const handleReset = useCallback(() => {
     setPrompt('');
     setMedia([]);
     setResult(null);
     setResultText(undefined);
     if (pollRef.current) clearInterval(pollRef.current);
-  }, []);
+    // Reset settings to defaults for current model
+    const defaults: Record<string, string | number | boolean> = {};
+    selectedModel.settings.forEach((s) => {
+      if (s.default !== undefined) defaults[s.key] = s.default;
+    });
+    setSettings((prev) => ({ ...prev, [selectedModel.id]: defaults }));
+  }, [selectedModel]);
 
   const promptPlaceholder =
     selectedModel.mediaType === 'audio'
@@ -211,20 +234,21 @@ export default function GenerationTab({ onModelChange }: GenerationTabProps) {
       {/* Main content */}
       <main className="flex-1 p-4 md:p-8 max-w-4xl mx-auto w-full overflow-y-auto">
         <div className="space-y-6">
-          {/* Model info */}
+          {/* Model info + reset */}
           <div className="bg-gray-900 rounded-lg p-4 flex items-center justify-between">
             <div>
               <h2 className="font-semibold">{selectedModel.displayName}</h2>
               <p className="text-sm text-gray-400">{selectedModel.description}</p>
             </div>
-            {result && (
+            <div className="flex gap-2">
               <button
-                onClick={handleClear}
+                onClick={handleReset}
                 className="text-sm text-gray-400 hover:text-white px-3 py-1.5 border border-gray-700 rounded-lg hover:border-gray-500 transition-colors"
+                title="Reset all settings, prompt, and results"
               >
-                New prompt
+                Reset
               </button>
-            )}
+            </div>
           </div>
 
           <SettingsPanel
