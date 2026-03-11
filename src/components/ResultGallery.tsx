@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { type GenerationResult, type GenerationResultItem } from '@/lib/types';
 
 interface ResultGalleryProps {
@@ -47,6 +47,14 @@ function Lightbox({
   item: GenerationResultItem;
   onClose: () => void;
 }) {
+  useEffect(() => {
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handleKey);
+    return () => window.removeEventListener('keydown', handleKey);
+  }, [onClose]);
+
   return (
     <div
       className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4"

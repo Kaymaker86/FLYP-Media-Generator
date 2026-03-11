@@ -244,6 +244,14 @@ export default function GenerationTab({ onModelChange }: GenerationTabProps) {
           <textarea
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+                e.preventDefault();
+                if (!loading && prompt.trim()) {
+                  handleGenerate();
+                }
+              }
+            }}
             placeholder={promptPlaceholder}
             rows={4}
             className="w-full bg-gray-900 text-gray-200 border border-gray-700 rounded-lg px-4 py-3 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder-gray-600"

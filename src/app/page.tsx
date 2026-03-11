@@ -2,6 +2,7 @@
 
 import { useState, useCallback } from 'react';
 import GenerationTab from '@/components/GenerationTab';
+import HistoryPanel from '@/components/HistoryPanel';
 import { getEnabledModels } from '@/lib/modelRegistry';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -16,6 +17,7 @@ export default function Home() {
     { id: uuidv4(), label: defaultModelName },
   ]);
   const [activeTabId, setActiveTabId] = useState(tabs[0].id);
+  const [historyOpen, setHistoryOpen] = useState(false);
 
   const addTab = useCallback(() => {
     const newTab: Tab = { id: uuidv4(), label: defaultModelName };
@@ -90,6 +92,17 @@ export default function Home() {
             </svg>
           </button>
         </div>
+
+        {/* History button */}
+        <button
+          onClick={() => setHistoryOpen(true)}
+          className="px-3 py-2 text-gray-500 hover:text-white hover:bg-gray-800 transition-colors shrink-0 mr-2"
+          title="History"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+        </button>
       </div>
 
       {/* Tab content */}
@@ -105,6 +118,9 @@ export default function Home() {
           </div>
         ))}
       </div>
+
+      {/* History panel */}
+      <HistoryPanel open={historyOpen} onClose={() => setHistoryOpen(false)} />
     </div>
   );
 }
