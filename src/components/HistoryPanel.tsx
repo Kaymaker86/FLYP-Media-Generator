@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { getUniqueFilename } from '@/lib/downloadCounter';
 
 interface HistoryItem {
   url: string;
@@ -54,7 +55,7 @@ function DownloadButton({ url, filename }: { url: string; filename: string }) {
       const objectUrl = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = objectUrl;
-      a.download = filename;
+      a.download = getUniqueFilename(filename);
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);

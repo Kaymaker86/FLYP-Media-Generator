@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useEffect } from 'react';
 import { type GenerationResult, type GenerationResultItem } from '@/lib/types';
+import { getUniqueFilename } from '@/lib/downloadCounter';
 
 interface ResultGalleryProps {
   result: GenerationResult | null;
@@ -16,7 +17,7 @@ function DownloadButton({ item }: { item: GenerationResultItem }) {
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = item.filename;
+      a.download = getUniqueFilename(item.filename);
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
