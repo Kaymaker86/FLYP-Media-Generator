@@ -4,6 +4,7 @@ import { useState, useCallback, useRef } from 'react';
 import GenerationTab from '@/components/GenerationTab';
 import HistoryPanel from '@/components/HistoryPanel';
 import { getEnabledModels } from '@/lib/modelRegistry';
+import { type AttachedMedia } from '@/lib/types';
 import { v4 as uuidv4 } from 'uuid';
 
 interface Tab {
@@ -11,12 +12,13 @@ interface Tab {
   label: string;
   initialModelId?: string;
   initialSettings?: Record<string, Record<string, string | number | boolean>>;
+  initialMedia?: AttachedMedia[];
 }
 
-// Store for reading current tab state (model + settings) from GenerationTab
 interface TabState {
   modelId: string;
   settings: Record<string, Record<string, string | number | boolean>>;
+  media: AttachedMedia[];
 }
 
 export default function Home() {
@@ -40,6 +42,7 @@ export default function Home() {
         : defaultModel.displayName,
       initialModelId: activeState?.modelId,
       initialSettings: activeState?.settings ? { ...activeState.settings } : undefined,
+      initialMedia: activeState?.media ? [...activeState.media] : undefined,
     };
     setTabs((prev) => [...prev, newTab]);
     setActiveTabId(newTab.id);
@@ -70,7 +73,7 @@ export default function Home() {
     (tabId: string, model: { id: string; displayName: string }) => {
       updateTabLabel(tabId, model.displayName);
       if (!tabStatesRef.current[tabId]) {
-        tabStatesRef.current[tabId] = { modelId: model.id, settings: {} };
+        tabStatesRef.current[tabId] = { modelId: model.id, settings: {}, media: [] };
       } else {
         tabStatesRef.current[tabId].modelId = model.id;
       }
@@ -81,11 +84,22 @@ export default function Home() {
   const handleSettingsChange = useCallback(
     (tabId: string, modelId: string, settings: Record<string, string | number | boolean>) => {
       if (!tabStatesRef.current[tabId]) {
-        tabStatesRef.current[tabId] = { modelId, settings: {} };
+        tabStatesRef.current[tabId] = { modelId, settings: {}, media: [] };
       }
       tabStatesRef.current[tabId].settings[modelId] = settings;
     },
     []
+  );
+
+  const handleMediaChange = useCallback(
+    (tabId: string, media: AttachedMedia[]) => {
+      if (!tabStatesRef.current[tabId]) {
+        tabStatesRef.current[tabId] = { modelId: defaultModel.id, settings: {}, media };
+      } else {
+        tabStatesRef.current[tabId].media = media;
+      }
+    },
+    [defaultModel.id]
   );
 
   return (
@@ -157,8 +171,10 @@ export default function Home() {
             <GenerationTab
               initialModelId={tab.initialModelId}
               initialSettings={tab.initialSettings}
+              initialMedia={tab.initialMedia}
               onModelChange={(model) => handleModelChange(tab.id, model)}
               onSettingsSnapshot={(modelId, s) => handleSettingsChange(tab.id, modelId, s)}
+              onMediaSnapshot={(m) => handleMediaChange(tab.id, m)}
             />
           </div>
         ))}

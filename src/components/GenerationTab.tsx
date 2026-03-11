@@ -12,11 +12,13 @@ import { type AttachedMedia, type GenerationResult } from '@/lib/types';
 interface GenerationTabProps {
   onModelChange: (model: ModelDef) => void;
   onSettingsSnapshot?: (modelId: string, settings: Record<string, string | number | boolean>) => void;
+  onMediaSnapshot?: (media: AttachedMedia[]) => void;
   initialModelId?: string;
   initialSettings?: Record<string, Record<string, string | number | boolean>>;
+  initialMedia?: AttachedMedia[];
 }
 
-export default function GenerationTab({ onModelChange, onSettingsSnapshot, initialModelId, initialSettings }: GenerationTabProps) {
+export default function GenerationTab({ onModelChange, onSettingsSnapshot, onMediaSnapshot, initialModelId, initialSettings, initialMedia }: GenerationTabProps) {
   const [selectedModel, setSelectedModel] = useState<ModelDef>(() => {
     if (initialModelId) {
       return getModel(initialModelId) || getEnabledModels()[0];
@@ -24,7 +26,7 @@ export default function GenerationTab({ onModelChange, onSettingsSnapshot, initi
     return getEnabledModels()[0];
   });
   const [prompt, setPrompt] = useState('');
-  const [media, setMedia] = useState<AttachedMedia[]>([]);
+  const [media, setMedia] = useState<AttachedMedia[]>(initialMedia || []);
   const [settings, setSettings] = useState<Record<string, Record<string, string | number | boolean>>>(
     initialSettings ? { ...initialSettings } : {}
   );
@@ -58,6 +60,13 @@ export default function GenerationTab({ onModelChange, onSettingsSnapshot, initi
       onSettingsSnapshot(selectedModel.id, currentSettings);
     }
   }, [selectedModel.id, currentSettings, onSettingsSnapshot]);
+
+  // Report media back to parent for tab inheritance
+  useEffect(() => {
+    if (onMediaSnapshot) {
+      onMediaSnapshot(media);
+    }
+  }, [media, onMediaSnapshot]);
 
   const handleSettingChange = useCallback(
     (key: string, value: string | number | boolean) => {
